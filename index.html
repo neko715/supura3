@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スプラトゥーン3 武器ランダム選択</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+            overflow: hidden;
+        }
+        #weapon-name {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+            opacity: 1;
+            transition: opacity 0.3s ease-in-out;
+        }
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: red;
+            opacity: 0.8;
+            border-radius: 50%;
+            animation: fall 1s linear forwards;
+        }
+        @keyframes fall {
+            0% {
+                transform: translateY(-100vh) translateX(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) translateX(calc(50vw - 50%));
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>スプラトゥーン3 武器ランダム選択</h1>
+    <div id="weapon-name">？？？</div>
+    <button onclick="chooseWeapon()">武器を選ぶ</button>
+
+    <script>
+        const weapons = [
+            "スプラシューター", "スプラシューターコラボ", "わかばシューター", "もみじシューター",
+            "シャープマーカー", "シャープマーカーネオ", "ボールドマーカー", "ボールドマーカーネオ",
+            "N-ZAP85", "N-ZAP89", "プロモデラーMG", "プロモデラーRG",
+            "プライムシューター", "プライムシューターコラボ", "ジェットスイーパー", "ジェットスイーパーカスタム",
+            "ボトルガイザー", "L3リールガン", "L3リールガンD", "H3リールガン", "H3リールガンD",
+            "スペースシューター", "スペースシューターコラボ", "ノヴァブラスター", "ノヴァブラスターネオ",
+            "ホットブラスター", "ホットブラスターカスタム", "ロングブラスター", "ロングブラスターカスタム",
+            "クラッシュブラスター", "クラッシュブラスターネオ", "ラピッドブラスター", "ラピッドブラスターデコ",
+            "Rブラスターエリート", "Rブラスターエリートデコ", "S-BLAST92", "S-BLAST91",
+            "スプラローラー", "スプラローラーコラボ", "カーボンローラー", "カーボンローラーデコ",
+            "ダイナモローラー", "ダイナモローラーテスラ", "ヴァリアブルローラー", "ヴァリアブルローラーフォイル",
+            "ワイドローラー"
+        ];
+
+        function chooseWeapon() {
+            const weaponName = document.getElementById("weapon-name");
+            let count = 0;
+            weaponName.style.opacity = "1";
+
+            let interval = setInterval(() => {
+                const randomIndex = Math.floor(Math.random() * weapons.length);
+                weaponName.textContent = weapons[randomIndex];
+
+                if (count < 10) { // 10回ランダム切り替え
+                    count++;
+                } else {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        const finalIndex = Math.floor(Math.random() * weapons.length);
+                        weaponName.textContent = weapons[finalIndex];
+                        weaponName.style.opacity = "0.5";
+                        setTimeout(() => {
+                            weaponName.style.opacity = "1";
+                            launchConfetti(); // 🎉 紙吹雪を発射！
+                        }, 200);
+                    }, 300);
+                }
+            }, 100);
+        }
+
+        function launchConfetti() {
+            for (let i = 0; i < 30; i++) { // 30個の紙吹雪
+                setTimeout(() => {
+                    const confetti = document.createElement("div");
+                    confetti.classList.add("confetti");
+
+                    // ランダムな位置と色
+                    confetti.style.left = `${Math.random() * 100}vw`;
+                    confetti.style.backgroundColor = getRandomColor();
+                    confetti.style.animationDuration = `${Math.random() * 1.5 + 0.5}s`;
+
+                    document.body.appendChild(confetti);
+
+                    // アニメーションが終わったら削除
+                    setTimeout(() => confetti.remove(), 1500);
+                }, i * 50); // 時間差で紙吹雪を飛ばす
+            }
+        }
+
+        function getRandomColor() {
+            const colors = ["red", "blue", "green", "yellow", "purple", "orange", "pink"];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+    </script>
+</body>
+</html>
