@@ -18,6 +18,26 @@
             opacity: 1;
             transition: opacity 0.3s ease-in-out;
         }
+        #history {
+            margin-top: 30px;
+            text-align: left;
+            display: inline-block;
+        }
+        #history h2 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        #history-list {
+            list-style: none;
+            padding: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            text-align: left;
+        }
+        #history-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
         button {
             font-size: 18px;
             padding: 10px 20px;
@@ -49,6 +69,11 @@
     <div id="weapon-name">？？？</div>
     <button onclick="chooseWeapon()">武器を選ぶ</button>
 
+    <div id="history">
+        <h2>履歴</h2>
+        <ul id="history-list"></ul>
+    </div>
+
     <script>
         const weapons = [
             "スプラシューター", "スプラシューターコラボ", "わかばシューター", "もみじシューター",
@@ -64,6 +89,7 @@
             "ダイナモローラー", "ダイナモローラーテスラ", "ヴァリアブルローラー", "ヴァリアブルローラーフォイル",
             "ワイドローラー"
         ];
+        let history = [];
 
         function chooseWeapon() {
             const weaponName = document.getElementById("weapon-name");
@@ -74,39 +100,44 @@
                 const randomIndex = Math.floor(Math.random() * weapons.length);
                 weaponName.textContent = weapons[randomIndex];
 
-                if (count < 10) { // 10回ランダム切り替え
+                if (count < 10) {
                     count++;
                 } else {
                     clearInterval(interval);
                     setTimeout(() => {
                         const finalIndex = Math.floor(Math.random() * weapons.length);
-                        weaponName.textContent = weapons[finalIndex];
+                        const finalWeapon = weapons[finalIndex];
+                        weaponName.textContent = finalWeapon;
                         weaponName.style.opacity = "0.5";
                         setTimeout(() => {
                             weaponName.style.opacity = "1";
-                            launchConfetti(); // 🎉 紙吹雪を発射！
+                            launchConfetti();
+                            addToHistory(finalWeapon);
                         }, 200);
                     }, 300);
                 }
             }, 100);
         }
 
+        function addToHistory(weapon) {
+            history.unshift(weapon);
+            const list = document.getElementById("history-list");
+            const item = document.createElement("li");
+            item.textContent = weapon;
+            list.insertBefore(item, list.firstChild);
+        }
+
         function launchConfetti() {
-            for (let i = 0; i < 30; i++) { // 30個の紙吹雪
+            for (let i = 0; i < 30; i++) {
                 setTimeout(() => {
                     const confetti = document.createElement("div");
                     confetti.classList.add("confetti");
-
-                    // ランダムな位置と色
                     confetti.style.left = `${Math.random() * 100}vw`;
                     confetti.style.backgroundColor = getRandomColor();
                     confetti.style.animationDuration = `${Math.random() * 1.5 + 0.5}s`;
-
                     document.body.appendChild(confetti);
-
-                    // アニメーションが終わったら削除
                     setTimeout(() => confetti.remove(), 1500);
-                }, i * 50); // 時間差で紙吹雪を飛ばす
+                }, i * 50);
             }
         }
 
