@@ -42,6 +42,7 @@
             font-size: 18px;
             padding: 10px 20px;
             cursor: pointer;
+            margin: 0 5px;
         }
         .confetti {
             position: fixed;
@@ -68,6 +69,7 @@
     <h1>スプラトゥーン3 武器ランダム選択</h1>
     <div id="weapon-name">？？？</div>
     <button onclick="chooseWeapon()">武器を選ぶ</button>
+    <button onclick="clearHistory()">履歴をクリア</button>
 
     <div id="history">
         <h2>履歴</h2>
@@ -125,6 +127,12 @@
             const item = document.createElement("li");
             item.textContent = weapon;
             list.insertBefore(item, list.firstChild);
+        }
+
+        function clearHistory() {
+            history = [];
+            const list = document.getElementById("history-list");
+            list.innerHTML = '';
         }
 
         function launchConfetti() {
