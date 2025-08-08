@@ -1,87 +1,294 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>スプラ3 ステージ情報</title>
-<style>
-  body { font-family: sans-serif; padding: 10px; }
-  h2 { margin-top: 20px; }
-  .stage { display: flex; align-items: center; margin-bottom: 10px; }
-  .stage img { width: 100px; height: auto; margin-right: 10px; }
-</style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>スプラ3 現在のステージ情報（PWA通知対応）</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "メイリオ", sans-serif;
+            background: #f6f8fb;
+            color: #111;
+            padding: 16px;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin: 0;
+        }
+
+        button {
+            margin-left: auto;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid #e3e7ee;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            max-width: 900px;
+        }
+
+        .small {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .rule {
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .thumb {
+            width: 160px;
+            height: 90px;
+            background: #ddd;
+            border-radius: 6px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .meta {
+            flex: 1;
+        }
+
+        .error {
+            color: #b00020;
+            font-weight: 700;
+        }
+    </style>
 </head>
+
 <body>
-<h1>スプラトゥーン3 現在のステージ</h1>
+    <header>
+        <h1>スプラ3 — 現在のレギュラー・バンカラ（チャレンジ→オープン）</h1>
+        <button id="refreshBtn">更新</button>
+    </header>
 
-<div id="regular"></div>
-<div id="bankara-challenge"></div>
-<div id="bankara-open"></div>
+    <div class="small">データソース: spla3.yuu26.com (非公式)</div>
 
-<script>
-// ==================== PWA & 通知設定 ==================== //
-if ('Notification' in window && 'serviceWorker' in navigator) {
-  Notification.requestPermission().then(permission => {
-    if (permission === 'granted') {
-      navigator.serviceWorker.register('sw.js').then(() => {
-        console.log('Service Worker registered');
-      });
-    }
-  });
-}
+    <div id="regular" class="card">
+        <div class="small">レギュラーマッチ（現在）</div>
+        <div id="regularContent" class="small">読み込み待ち…</div>
+    </div>
 
-// ==================== ステージ情報取得 ==================== //
-async function fetchStageInfo() {
-  const regularRes = await fetch("https://spla3.yuu26.com/regular/now");
-  const challengeRes = await fetch("https://spla3.yuu26.com/bankara-challenge/now");
-  const openRes = await fetch("https://spla3.yuu26.com/bankara-open/now");
+    <div id="bankaraChallenge" class="card">
+        <div class="small">バンカラ（チャレンジ） — 現在のルールとステージ</div>
+        <div id="bankaraChallengeContent" class="small">読み込み待ち…</div>
+    </div>
 
-  const regularData = await regularRes.json();
-  const challengeData = await challengeRes.json();
-  const openData = await openRes.json();
+    <div id="bankaraOpen" class="card">
+        <div class="small">バンカラ（オープン） — 現在のルールとステージ</div>
+        <div id="bankaraOpenContent" class="small">読み込み待ち…</div>
+    </div>
 
-  displayMatch("regular", "レギュラーマッチ", regularData.results[0]);
-  displayMatch("bankara-challenge", "バンカラマッチ（チャレンジ）", challengeData.results[0]);
-  displayMatch("bankara-open", "バンカラマッチ（オープン）", openData.results[0]);
+    <div id="err" class="small"></div>
 
-  checkForNotification(regularData.results[0], challengeData.results[0], openData.results[0]);
-}
+    <script>
+        const API_BASE = 'https://spla3.yuu26.com/api';
+        const el = id => document.getElementById(id);
+        const fmt = iso => iso ? new Date(iso).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '—';
+        const nowJST = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
 
-function displayMatch(elementId, title, data) {
-  const container = document.getElementById(elementId);
-  container.innerHTML = `<h2>${title} (${data.rule.name})</h2>` +
-    data.stages.map(stage =>
-      `<div class="stage">
-        <img src="${stage.image}" alt="${stage.name}">
-        <div>${stage.name}</div>
-      </div>`
-    ).join("");
-}
+        // ステージ画像付き要素作成
+        function createStageNode(stage) {
+            const wrap = document.createElement('div');
+            wrap.className = 'row';
+            const thumb = document.createElement('div');
+            thumb.className = 'thumb';
+            if (stage?.image) {
+                const img = document.createElement('img');
+                img.src = stage.image;
+                img.alt = stage.name || 'stage';
+                thumb.appendChild(img);
+            } else {
+                thumb.textContent = '画像なし';
+            }
+            const meta = document.createElement('div');
+            meta.className = 'meta';
+            const name = document.createElement('div');
+            name.className = 'rule';
+            name.textContent = stage?.name || 'ステージ名不明';
+            meta.appendChild(name);
+            wrap.appendChild(thumb);
+            wrap.appendChild(meta);
+            return wrap;
+        }
 
-// ==================== 通知チェック ==================== //
-function checkForNotification(regular, challenge, open) {
-  const key = "lastStages";
-  const current = JSON.stringify({
-    regular: regular.stages.map(s => s.name),
-    challenge: challenge.stages.map(s => s.name),
-    open: open.stages.map(s => s.name)
-  });
+        // エラー表示
+        function showError(msg) {
+            el('err').textContent = msg;
+        }
 
-  const previous = localStorage.getItem(key);
-  if (previous && previous !== current) {
-    navigator.serviceWorker.ready.then(reg => {
-      reg.showNotification("ステージ変更！", {
-        body: "新しいステージが始まりました！",
-        icon: "icon.png"
-      });
-    });
-  }
-  localStorage.setItem(key, current);
-}
+        // レギュラー取得
+        async function loadRegular() {
+            const target = el('regularContent');
+            target.textContent = '読み込み中…';
+            try {
+                const data = await fetch(`${API_BASE}/regular/now`, { cache: 'no-store' }).then(r => r.json());
+                if (!Array.isArray(data.results) || data.results.length === 0) {
+                    target.textContent = 'データなし';
+                    return;
+                }
+                const e = data.results[0];
+                const container = document.createElement('div');
+                container.innerHTML = `<div class="small">開始: ${fmt(e.start_time)} ／ 終了: ${fmt(e.end_time)}</div>
+                           <div class="rule">${e.rule?.name || 'ルール情報なし'}</div>`;
+                (Array.isArray(e.stages) ? e.stages.slice(0, 2) : (e.stage ? [e.stage] : [])).forEach(s => {
+                    container.appendChild(createStageNode(s));
+                });
+                target.innerHTML = '';
+                target.appendChild(container);
+            } catch (e) {
+                target.innerHTML = `<div class="error">読み込み失敗: ${e.message}</div>`;
+            }
+        }
 
-// ==================== 定期更新 ==================== //
-fetchStageInfo();
-setInterval(fetchStageInfo, 5 * 60 * 1000); // 5分ごと
-</script>
+        // バンカラ現在枠取得（scheduleから現在時間にマッチする枠を抽出）
+        async function loadBankaraCurrent(type, targetId) {
+            const target = el(targetId);
+            target.textContent = '読み込み中…';
+            try {
+                const data = await fetch(`${API_BASE}/${type}/schedule`, { cache: 'no-store' }).then(r => r.json());
+                if (!Array.isArray(data.results) || data.results.length === 0) {
+                    target.textContent = 'データなし';
+                    return;
+                }
+                const now = nowJST();
+                const current = data.results.find(e => {
+                    const start = new Date(e.start_time);
+                    const end = new Date(e.end_time);
+                    return now >= start && now < end;
+                });
+                if (!current) {
+                    target.textContent = '現在の枠が見つかりません';
+                    return;
+                }
+                const container = document.createElement('div');
+                container.innerHTML = `<div class="small">開始: ${fmt(current.start_time)} ／ 終了: ${fmt(current.end_time)}</div>
+                           <div class="rule">${current.rule?.name || 'ルール情報なし'}</div>`;
+                (Array.isArray(current.stages) ? current.stages.slice(0, 2) : (current.stage ? [current.stage] : [])).forEach(s => {
+                    container.appendChild(createStageNode(s));
+                });
+                target.innerHTML = '';
+                target.appendChild(container);
+            } catch (e) {
+                target.innerHTML = `<div class="error">読み込み失敗: ${e.message}</div>`;
+            }
+        }
+
+        // 通知チェック
+        function checkForNotification(regular, challenge, open) {
+            const key = "lastStages";
+            const current = JSON.stringify({
+                regular: regular.stages.map(s => s.name),
+                challenge: challenge.stages.map(s => s.name),
+                open: open.stages.map(s => s.name),
+            });
+            const previous = localStorage.getItem(key);
+            if (previous && previous !== current) {
+                navigator.serviceWorker.ready.then(registration => {
+                    registration.showNotification("ステージ変更！", {
+                        body: "新しいステージが始まりました！",
+                        icon: "icon.png"
+                    });
+                });
+            }
+            localStorage.setItem(key, current);
+        }
+
+        async function refreshAll() {
+            showError('');
+            try {
+                const [regularData, challengeData, openData] = await Promise.all([
+                    fetch(`${API_BASE}/regular/now`, { cache: 'no-store' }).then(r => r.json()),
+                    fetch(`${API_BASE}/bankara-challenge/schedule`, { cache: 'no-store' }).then(r => r.json()),
+                    fetch(`${API_BASE}/bankara-open/schedule`, { cache: 'no-store' }).then(r => r.json()),
+                ]);
+
+                loadRegular();
+
+                const now = nowJST();
+
+                // バンカラ チャレンジ 現在枠
+                const challengeCurrent = challengeData.results.find(e => {
+                    const start = new Date(e.start_time);
+                    const end = new Date(e.end_time);
+                    return now >= start && now < end;
+                });
+
+                // バンカラ オープン 現在枠
+                const openCurrent = openData.results.find(e => {
+                    const start = new Date(e.start_time);
+                    const end = new Date(e.end_time);
+                    return now >= start && now < end;
+                });
+
+                if (challengeCurrent) {
+                    const challengeTarget = el('bankaraChallengeContent');
+                    challengeTarget.textContent = '';
+                    const container = document.createElement('div');
+                    container.innerHTML = `<div class="small">開始: ${fmt(challengeCurrent.start_time)} ／ 終了: ${fmt(challengeCurrent.end_time)}</div>
+                             <div class="rule">${challengeCurrent.rule?.name || 'ルール情報なし'}</div>`;
+                    (Array.isArray(challengeCurrent.stages) ? challengeCurrent.stages.slice(0, 2) : (challengeCurrent.stage ? [challengeCurrent.stage] : [])).forEach(s => {
+                        container.appendChild(createStageNode(s));
+                    });
+                    challengeTarget.appendChild(container);
+                } else {
+                    el('bankaraChallengeContent').textContent = '現在の枠が見つかりません';
+                }
+
+                if (openCurrent) {
+                    const openTarget = el('bankaraOpenContent');
+                    openTarget.textContent = '';
+                    const container = document.createElement('div');
+                    container.innerHTML = `<div class="small">開始: ${fmt(openCurrent.start_time)} ／ 終了: ${fmt(openCurrent.end_time)}</div>
+                             <div class="rule">${openCurrent.rule?.name || 'ルール情報なし'}</div>`;
+                    (Array.isArray(openCurrent.stages) ? openCurrent.stages.slice(0, 2) : (openCurrent.stage ? [openCurrent.stage] : [])).forEach(s => {
+                        container.appendChild(createStageNode(s));
+                    });
+                    openTarget.appendChild(container);
+                } else {
+                    el('bankaraOpenContent').textContent = '現在の枠が見つかりません';
+                }
+
+                checkForNotification(regularData.results[0], challengeCurrent, openCurrent);
+            } catch (e) {
+                showError('データ取得中にエラーが発生しました: ' + e.message);
+            }
+        }
+
+        el('refreshBtn').addEventListener('click', refreshAll);
+        refreshAll();
+    </script>
 </body>
+
 </html>
